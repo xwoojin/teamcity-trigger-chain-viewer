@@ -1,0 +1,242 @@
+/* Trigger Chain View - Styles */
+
+.trigger-chain-container {
+    padding: 16px 20px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Header */
+.trigger-chain-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #ddd;
+}
+
+.trigger-chain-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
+}
+
+.trigger-chain-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #fff;
+    background-color: #4a90d9;
+    border-radius: 10px;
+}
+
+.trigger-chain-toggle-all {
+    margin-left: auto;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background: #f5f5f5;
+    color: #555;
+}
+
+.trigger-chain-toggle-all:hover {
+    background: #e8e8e8;
+}
+
+/* Tree structure */
+.trigger-chain-tree {
+    position: relative;
+}
+
+.trigger-chain-root-node {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    margin-bottom: 4px;
+    background: #f0f6ff;
+    border: 1px solid #c4d9f2;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.trigger-chain-current-tag {
+    display: inline-block;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #4a90d9;
+    background: #e3effc;
+    border-radius: 3px;
+    margin-left: 4px;
+}
+
+/* Node list */
+.trigger-chain-list {
+    list-style: none;
+    margin: 0;
+    padding-left: 28px;
+    position: relative;
+}
+
+.trigger-chain-item {
+    position: relative;
+    padding: 2px 0;
+}
+
+/* Connector lines */
+.trigger-chain-connector {
+    position: absolute;
+    left: -20px;
+    top: 0;
+    bottom: 0;
+    width: 20px;
+}
+
+.trigger-chain-line-vertical {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: #ccc;
+}
+
+.trigger-chain-item.last-child > .trigger-chain-connector > .trigger-chain-line-vertical {
+    bottom: 50%;
+}
+
+.trigger-chain-line-horizontal {
+    position: absolute;
+    left: 0;
+    top: 14px;
+    width: 20px;
+    height: 1px;
+    background: #ccc;
+}
+
+/* Node */
+.trigger-chain-node {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 3px;
+    transition: background 0.15s;
+}
+
+.trigger-chain-node:hover {
+    background: #f5f5f5;
+}
+
+/* Expand/collapse button — acts as the main node icon */
+.trigger-chain-expand-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: #4a90d9;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.trigger-chain-expand-btn:hover {
+    color: #2b6cb0;
+}
+
+.trigger-chain-expand-btn .trigger-chain-arrow {
+    display: inline-block;
+    transition: transform 0.15s;
+}
+
+.trigger-chain-expand-btn.expanded .trigger-chain-arrow {
+    transform: rotate(90deg);
+}
+
+/* Leaf node icon (no children, not clickable) */
+.trigger-chain-leaf-dot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    font-size: 10px;
+    color: #4a90d9;
+    flex-shrink: 0;
+}
+
+/* Root node icon */
+.trigger-chain-node-icon.root-icon {
+    font-size: 13px;
+    color: #2b6cb0;
+    flex-shrink: 0;
+}
+
+/* Node link */
+.trigger-chain-node-link {
+    text-decoration: none;
+    color: #333;
+}
+
+.trigger-chain-node-link:hover {
+    text-decoration: underline;
+    color: #2b6cb0;
+}
+
+.trigger-chain-node-link.root-link {
+    color: #2b6cb0;
+}
+
+.trigger-chain-project {
+    color: #888;
+    font-size: 13px;
+}
+
+.trigger-chain-separator {
+    color: #bbb;
+    font-size: 13px;
+}
+
+.trigger-chain-buildtype {
+    font-weight: 500;
+    font-size: 13px;
+}
+
+/* Empty state */
+.trigger-chain-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #888;
+}
+
+.trigger-chain-empty-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.trigger-chain-empty-text {
+    font-size: 14px;
+    margin: 0 0 8px;
+    color: #666;
+}
+
+.trigger-chain-empty-hint {
+    font-size: 12px;
+    margin: 0;
+    color: #999;
+}
+
+/* Collapsed subtree */
+.trigger-chain-list.collapsed {
+    display: none;
+}

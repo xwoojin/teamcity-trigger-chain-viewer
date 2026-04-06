@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.woojin.teamcity</groupId>
+    <artifactId>trigger-chain-view</artifactId>
+    <version>260406.2</version>
+  </parent>
+
+  <artifactId>trigger-chain-view-server</artifactId>
+  <packaging>jar</packaging>
+  <name>Trigger Chain View - Server</name>
+
+  <dependencies>
+    <!-- TeamCity Server OpenAPI -->
+    <dependency>
+      <groupId>jetbrains.teamcity</groupId>
+      <artifactId>server-openapi</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${teamcity.lib}/server-openapi.jar</systemPath>
+    </dependency>
+
+    <!-- TeamCity Server Common API (PluginDescriptor) -->
+    <dependency>
+      <groupId>jetbrains.teamcity</groupId>
+      <artifactId>server-common-api</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${teamcity.lib}/server-common-api.jar</systemPath>
+    </dependency>
+
+    <!-- TeamCity Web OpenAPI (WebControllerManager, BuildTypeTab) -->
+    <dependency>
+      <groupId>jetbrains.teamcity</groupId>
+      <artifactId>web-openapi</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${teamcity.lib}/web-openapi.jar</systemPath>
+    </dependency>
+
+    <!-- Servlet API -->
+    <dependency>
+      <groupId>javax.servlet</groupId>
+      <artifactId>servlet-api</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${teamcity.tomcat.lib}/servlet-api.jar</systemPath>
+    </dependency>
+
+    <!-- JetBrains @NotNull / @Nullable annotations -->
+    <dependency>
+      <groupId>org.jetbrains</groupId>
+      <artifactId>annotations</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${teamcity.lib}/annotations.jar</systemPath>
+    </dependency>
+
+    <!-- TeamCity common (TeamCityExtension base interface) -->
+    <dependency>
+      <groupId>jetbrains.teamcity</groupId>
+      <artifactId>common</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${teamcity.lib}/common.jar</systemPath>
+    </dependency>
+
+    <!-- TeamCity server-model (BuildProject, SBuildType, etc.) -->
+    <dependency>
+      <groupId>jetbrains.teamcity</groupId>
+      <artifactId>server-model</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${teamcity.lib}/server-model.jar</systemPath>
+    </dependency>
+
+    <!-- TeamCity VCS OpenAPI (required by SBuildType) -->
+    <dependency>
+      <groupId>jetbrains.teamcity</groupId>
+      <artifactId>server-openapi-vcs</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${teamcity.lib}/server-openapi-vcs.jar</systemPath>
+    </dependency>
+
+    <!-- TeamCity utils (required by SBuildAgent) -->
+    <dependency>
+      <groupId>jetbrains.teamcity</groupId>
+      <artifactId>utils</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${teamcity.lib}/utils.jar</systemPath>
+    </dependency>
+
+    <!-- Spring Core -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-core</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${teamcity.lib}/spring-core.jar</systemPath>
+    </dependency>
+
+    <!-- Spring Web -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-web</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${teamcity.lib}/spring-web.jar</systemPath>
+    </dependency>
+
+    <!-- Spring WebMVC -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-webmvc</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${teamcity.lib}/spring-webmvc.jar</systemPath>
+    </dependency>
+
+    <!-- Spring Context -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-context</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${teamcity.lib}/spring-context.jar</systemPath>
+    </dependency>
+
+    <!-- Spring Beans -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-beans</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${teamcity.lib}/spring-beans.jar</systemPath>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- 1) JAR 생성 (buildServerResources/JSP 포함) -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.3.0</version>
+        <configuration>
+          <archive>
+            <addMavenDescriptor>false</addMavenDescriptor>
+          </archive>
+        </configuration>
+      </plugin>
+
+      <!-- 2) 최종 플러그인 ZIP 패키징 -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <version>3.6.0</version>
+        <executions>
+          <execution>
+            <id>package-plugin-zip</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>single</goal>
+            </goals>
+            <configuration>
+              <descriptors>
+                <descriptor>src/main/assembly/plugin.xml</descriptor>
+              </descriptors>
+              <finalName>trigger-chain-view</finalName>
+              <appendAssemblyId>false</appendAssemblyId>
+              <outputDirectory>${project.parent.basedir}/dist</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
