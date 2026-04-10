@@ -65,8 +65,10 @@ The plugin scans **all build configurations** for Finish Build Triggers that dep
 Update `teamcity.home` in `pom.xml` to point to your TeamCity server installation, then:
 
 ```bash
-mvn clean verify
+./build.sh
 ```
+
+This will automatically increment the version (`YYMMDD.N`) and build the plugin ZIP.
 
 The plugin ZIP will be created at: `dist/trigger-chain-view.zip`
 
