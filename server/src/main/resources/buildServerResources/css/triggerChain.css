@@ -240,3 +240,21 @@
 .trigger-chain-list.collapsed {
     display: none;
 }
+
+/* Project-level: section separator between each build's chain */
+.trigger-chain-project-section {
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eee;
+}
+
+.trigger-chain-project-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+/* Secondary badge style */
+.trigger-chain-badge-secondary {
+    background-color: #6c9e3a;
+}

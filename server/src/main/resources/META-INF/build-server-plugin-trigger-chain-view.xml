@@ -8,4 +8,7 @@
     <bean id="triggerChainTab"
           class="com.woojin.teamcity.triggerchain.TriggerChainTab"/>
 
+    <bean id="triggerChainProjectTab"
+          class="com.woojin.teamcity.triggerchain.TriggerChainProjectTab"/>
+
 </beans>

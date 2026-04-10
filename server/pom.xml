@@ -8,7 +8,7 @@
   <parent>
     <groupId>com.woojin.teamcity</groupId>
     <artifactId>trigger-chain-view</artifactId>
-    <version>260406.2</version>
+    <version>260407.1</version>
   </parent>
 
   <artifactId>trigger-chain-view-server</artifactId>

@@ -2,6 +2,7 @@ package com.woojin.teamcity.triggerchain;
 
 import jetbrains.buildServer.serverSide.ProjectManager;
 import jetbrains.buildServer.serverSide.SBuildType;
+import jetbrains.buildServer.serverSide.SProject;
 import jetbrains.buildServer.buildTriggers.BuildTriggerDescriptor;
 import org.jetbrains.annotations.NotNull;
 
@@ -37,11 +38,43 @@ public class TriggerChainService {
      */
     @NotNull
     public TriggerChainNode buildDownstreamTree(@NotNull SBuildType buildType) {
+        Map<String, List<SBuildType>> reverseMap = buildReverseTriggersMap();
         TriggerChainNode root = createNode(buildType);
         Set<String> visited = new HashSet<>();
         visited.add(buildType.getBuildTypeId());
-        buildDownstreamTreeRecursive(buildType, root, visited);
+        buildDownstreamWithMap(buildType, root, visited, reverseMap);
         return root;
+    }
+
+    /**
+     * Builds downstream trigger chain trees for all build configurations
+     * within the given project (including sub-projects).
+     * Only returns trees that have at least one downstream trigger.
+     */
+    @NotNull
+    public List<TriggerChainNode> buildProjectTrees(@NotNull SProject project) {
+        Map<String, List<SBuildType>> reverseMap = buildReverseTriggersMap();
+        List<TriggerChainNode> trees = new ArrayList<>();
+
+        addProjectTrees(project, reverseMap, trees);
+        return trees;
+    }
+
+    private void addProjectTrees(@NotNull SProject project,
+                                  @NotNull Map<String, List<SBuildType>> reverseMap,
+                                  @NotNull List<TriggerChainNode> trees) {
+        for (SBuildType buildType : project.getOwnBuildTypes()) {
+            TriggerChainNode root = createNode(buildType);
+            Set<String> visited = new HashSet<>();
+            visited.add(buildType.getBuildTypeId());
+            buildDownstreamWithMap(buildType, root, visited, reverseMap);
+            if (root.hasChildren()) {
+                trees.add(root);
+            }
+        }
+        for (SProject subProject : project.getOwnProjects()) {
+            addProjectTrees(subProject, reverseMap, trees);
+        }
     }
 
     /**
@@ -72,13 +105,6 @@ public class TriggerChainService {
         }
 
         return reverseMap;
-    }
-
-    private void buildDownstreamTreeRecursive(@NotNull SBuildType buildType,
-                                               @NotNull TriggerChainNode node,
-                                               @NotNull Set<String> visited) {
-        Map<String, List<SBuildType>> reverseMap = buildReverseTriggersMap();
-        buildDownstreamWithMap(buildType, node, visited, reverseMap);
     }
 
     private void buildDownstreamWithMap(@NotNull SBuildType buildType,
