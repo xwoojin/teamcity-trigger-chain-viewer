@@ -4,7 +4,7 @@
   <info>
     <name>trigger-chain-view</name>
     <display-name>Trigger Chain View</display-name>
-    <version>260411.1</version>
+    <version>260412.1</version>
     <description>Visualizes finish build trigger chains for each build configuration. Shows downstream triggered builds as a recursive tree, making it easy to understand the full trigger chain flow.</description>
     <vendor>
       <name>WooJin Kim</name>

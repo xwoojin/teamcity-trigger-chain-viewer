@@ -8,7 +8,7 @@
   <parent>
     <groupId>com.woojin.teamcity</groupId>
     <artifactId>trigger-chain-view</artifactId>
-    <version>260411.1</version>
+    <version>260412.1</version>
   </parent>
 
   <artifactId>trigger-chain-view-server</artifactId>
@@ -140,6 +140,15 @@
       <version>local</version>
       <scope>system</scope>
       <systemPath>${teamcity.lib}/spring-beans.jar</systemPath>
+    </dependency>
+
+    <!-- TeamCity runtime-util (Status class) -->
+    <dependency>
+      <groupId>jetbrains.teamcity</groupId>
+      <artifactId>runtime-util</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${teamcity.lib}/runtime-util.jar</systemPath>
     </dependency>
   </dependencies>
 

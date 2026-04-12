@@ -25,6 +25,8 @@
                         <span class="trigger-chain-separator">&nbsp;::&nbsp;</span>
                         <span class="trigger-chain-buildtype">${fn:escapeXml(node.buildTypeName)}</span>
                     </a>
+                    <c:set var="statusNode" value="${node}" scope="request"/>
+                    <jsp:include page="triggerChainStatus.jsp"/>
                 </div>
 
                 <c:if test="${node.hasChildren()}">

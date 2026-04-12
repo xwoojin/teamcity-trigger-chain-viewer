@@ -25,6 +25,8 @@
                         <span class="trigger-chain-buildtype">${fn:escapeXml(triggerChainRoot.buildTypeName)}</span>
                     </a>
                     <span class="trigger-chain-current-tag">current</span>
+                    <c:set var="statusNode" value="${triggerChainRoot}" scope="request"/>
+                    <jsp:include page="triggerChainStatus.jsp"/>
                 </div>
 
                 <c:set var="nodes" value="${triggerChainRoot.children}" scope="request"/>

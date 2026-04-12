@@ -13,6 +13,13 @@ When builds are connected via Finish Build Triggers (e.g., Build A triggers Buil
 - **Downstream Trigger Chain** — See all builds that are triggered (directly or indirectly) when a build finishes
 - **Recursive Tree View** — Chains are displayed as an expandable tree, showing the full depth of trigger relationships
 - **Full Project Path** — Each build displays its complete project hierarchy (e.g., `Release :: Client :: KR :: Android :: Build A`)
+- **Project-Level View** — See all trigger chains across all build configurations within a project and its sub-projects at once
+- **Live Build Progress** — Real-time status tracking for each build in the chain:
+  - **Running** — Progress bar with percentage
+  - **Queued** — Waiting in the build queue
+  - **Success / Failure** — Completed build result
+  - **Pending** — Waiting to be triggered (chain in progress)
+- **Auto-Refresh** — Seamless AJAX-based refresh (no page reload) while a chain is in progress
 - **Circular Reference Detection** — Circular trigger chains are detected and marked to prevent infinite loops
 - **Expand / Collapse All** — Quickly expand or collapse the entire tree
 - **Supports Multiple Trigger Types**
@@ -32,18 +39,20 @@ Build A (finishes)
                                     └── triggers → Build D
 ```
 
-When you open **Build A** and click the **"Trigger Chain"** tab, you'll see the full downstream chain:
+When you open **Build A** and click the **"Trigger Chain"** tab, you'll see the full downstream chain with live status:
 
 ```
-Release :: Client :: KR :: Android :: Build A       CURRENT
-  ├── Release :: Client :: KR :: IOS :: Build AAA
-  │     └── Release :: Client :: KR :: WINDOW :: Build BBB
-  └── Dev :: NewOne :: Build B
-        └── AnotherDev :: OldOldNew :: Build C
-              └── PM :: Piel :: Build D
+Release :: Client :: KR :: Android :: Build A       CURRENT   #27 ▶ 15%
+  ├── Release :: Client :: KR :: IOS :: Build AAA             Pending
+  │     └── Release :: Client :: KR :: WINDOW :: Build BBB    Pending
+  └── Dev :: NewOne :: Build B                                Pending
+        └── AnotherDev :: OldOldNew :: Build C                Pending
+              └── PM :: Piel :: Build D                       Pending
 ```
 
-The plugin scans **all build configurations** for Finish Build Triggers that depend on the current build, then recursively follows the chain to build the full tree.
+The status updates automatically as the chain progresses — no manual refresh needed.
+
+You can also view trigger chains at the **project level**: open any project and click the **"Trigger Chain"** tab to see all chains within that project and its sub-projects.
 
 ## Installation
 
