@@ -407,12 +407,21 @@ public class TriggerChainService {
         }
 
         // Collect candidate AND-targets (grandchildren) keyed by normalized AND-set.
+        // A candidate may itself be a group pseudo-node produced at a deeper level:
+        // all of its members share the same AND-set, so we use that as the group's
+        // effective AND-set for the outer-level matching (enables nested grouping).
         Map<List<String>, List<TriggerChainNode>> candidates = new LinkedHashMap<>();
         for (TriggerChainNode M : children) {
             if (M.isGroup()) continue;
             for (TriggerChainNode C : M.getChildren()) {
-                if (C.isGroup()) continue;
-                List<String> andIds = C.getAndRequirementIds();
+                List<String> andIds;
+                if (C.isGroup()) {
+                    List<TriggerChainNode> gm = C.getGroupMembers();
+                    if (gm == null || gm.isEmpty()) continue;
+                    andIds = gm.get(0).getAndRequirementIds();
+                } else {
+                    andIds = C.getAndRequirementIds();
+                }
                 if (andIds == null || andIds.size() < 2) continue;
                 // Every member of the AND-set must be a direct sibling at G.
                 if (!siblingIds.containsAll(andIds)) continue;
@@ -449,7 +458,15 @@ public class TriggerChainService {
             for (TriggerChainNode s : shared) {
                 sharedToStrip.add(s);
                 // Condition label is now implied by the group box, drop redundant text.
-                s.clearAndRequirements();
+                if (s.isGroup()) {
+                    // Inner group — strip leftover per-member AND labels so they
+                    // don't resurface if the node is ever rendered as a regular node.
+                    if (s.getGroupMembers() != null) {
+                        for (TriggerChainNode im : s.getGroupMembers()) im.clearAndRequirements();
+                    }
+                } else {
+                    s.clearAndRequirements();
+                }
             }
         }
 
