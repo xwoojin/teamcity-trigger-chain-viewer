@@ -8,7 +8,7 @@ Works with the built-in TeamCity **Finish Build Trigger** and the [Finish Build 
 
 ## Screenshot
 
-![Trigger Chain View](docs/images/build-structures.png)
+![Trigger Chain View](docs/images/build-structure.png)
 
 ## Features
 
@@ -17,6 +17,7 @@ Works with the built-in TeamCity **Finish Build Trigger** and the [Finish Build 
 - **Project-level view** — Open any project's **Trigger Chain** tab to see all chains across that project and its sub-projects at once.
 - **Full project path** — Each node shows its complete project hierarchy (e.g., `Release :: Client :: KR :: Android :: Build A`).
 - **Multi-watch AND grouping** — When several sibling builds are co-watched by the same AND-condition trigger (Finish Build Trigger (Plus) multi-build), the siblings are bundled into a highlighted **Condition group** box, and the shared downstream builds are pulled up as the group's children. This replaces verbose `Condition: X + Y + ...` labels with a clean visual grouping whenever possible.
+- **Nested AND groups** — Groups nest naturally: if the shared downstream builds are themselves co-watched by another AND-condition further down the chain, an inner Condition group appears as the child of the outer one, so multi-stage AND pipelines stay readable at any depth.
 - **Agent mode badges** — `All Agents` (green) and `Same Agent` (orange) badges surface the FBT+ trigger options at a glance.
 - **Circular reference detection** — Circular trigger chains are detected and marked to prevent infinite loops.
 - **Expand / Collapse all** — Quickly expand or collapse the entire tree.
@@ -49,6 +50,21 @@ Open **Build Android Shipping** and click the **Trigger Chain** tab:
 ```
 
 The two signing builds are grouped because a single AND-condition trigger covers both, and the two uploads that depend on the group are shown once beneath it.
+
+If the two uploads are themselves co-watched by yet another AND-condition trigger (e.g. a final **Android Build Validator** that waits for both), the grouping nests automatically:
+
+```
+  ▼ Release :: … :: Android AAB to APK Converter           [Same Agent]
+    ┌─ CONDITION (ALL MUST FINISH) ──────────────────────┐
+    │ ▶ Release :: … :: Android AAB Signing  [Same Agent]│
+    │ ▶ Release :: … :: Android APK Signing  [Same Agent]│
+    └──┬─────────────────────────────────────────────────┘
+       ┌─ CONDITION (ALL MUST FINISH) ──────────────────────────┐
+       │ ▶ Android AAB Playconsole Upload    [Same Agent]       │
+       │ ▶ Android APK Sideload Upload       [Same Agent]       │
+       └──┬─────────────────────────────────────────────────────┘
+          └─ Android Build Validator   [All Agents]
+```
 
 Open **Android APK Signing** and click the **Trigger Usage** tab to see the inverse — "what watches me":
 
