@@ -2,13 +2,9 @@ package com.woojin.teamcity.triggerchain;
 
 import jetbrains.buildServer.serverSide.ProjectManager;
 import jetbrains.buildServer.serverSide.SBuildType;
-import jetbrains.buildServer.serverSide.SFinishedBuild;
 import jetbrains.buildServer.serverSide.SProject;
-import jetbrains.buildServer.serverSide.SQueuedBuild;
-import jetbrains.buildServer.serverSide.SRunningBuild;
 import jetbrains.buildServer.buildTriggers.BuildTriggerDescriptor;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
@@ -19,9 +15,12 @@ import java.util.*;
  * a "Finish Build Trigger" depending on A, then recursively finds their
  * downstream triggers to build the full chain.
  *
- * Build status is tracked relative to the current chain execution:
- * the root build's start time is used as a reference point to determine
- * which downstream builds belong to the current chain run.
+ * Supports multi-build AND triggers: when a build watches multiple upstream builds,
+ * it is shown only once in the tree with a Condition label listing all requirements.
+ *
+ * Supports agent mode annotation from Finish Build Trigger (Plus):
+ *   "all"  = trigger runs on all enabled compatible agents
+ *   "same" = trigger runs on the same agent that ran the watched build
  */
 public class TriggerChainService {
 
@@ -32,6 +31,8 @@ public class TriggerChainService {
     // Finish Build Trigger (Plus) plugin
     private static final String FINISH_BUILD_TRIGGER_PLUS_TYPE = "FinishBuildTriggerPlus";
     private static final String WATCHED_BUILD_TYPE_ID_PROPERTY = "watchedBuildTypeId";
+    private static final String TRIGGER_ON_ALL_AGENTS_PROPERTY = "triggerBuildOnAllCompatibleAgents";
+    private static final String TRIGGER_ON_SAME_AGENT_PROPERTY = "triggerOnSameAgent";
 
     private final ProjectManager projectManager;
 
@@ -43,19 +44,17 @@ public class TriggerChainService {
      * Builds the downstream trigger chain tree for a given build type.
      * Returns a root node representing the given build type, with children
      * being all build configs that are triggered by it (recursively).
-     * Build status is populated relative to the current chain execution.
      */
     @NotNull
     public TriggerChainNode buildDownstreamTree(@NotNull SBuildType buildType) {
         Map<String, List<SBuildType>> reverseMap = buildReverseTriggersMap();
-        Date chainStartTime = getChainStartTime(buildType);
+        Map<String, List<String>> andReqMap = buildAndRequirementsMap();
+        Map<String, String> agentModeMap = buildAgentModeMap();
 
         TriggerChainNode root = createNode(buildType);
-        populateChainBuildStatus(root, buildType, chainStartTime);
-
         Set<String> visited = new HashSet<>();
         visited.add(buildType.getBuildTypeId());
-        buildDownstreamWithMap(buildType, root, visited, reverseMap, chainStartTime);
+        buildDownstreamWithMap(buildType, root, visited, reverseMap, andReqMap, agentModeMap);
         return root;
     }
 
@@ -63,59 +62,88 @@ public class TriggerChainService {
      * Builds downstream trigger chain trees for all build configurations
      * within the given project (including sub-projects).
      * Only returns trees that have at least one downstream trigger.
+     * Trees whose root already appears as a descendant of another tree are excluded.
      */
     @NotNull
     public List<TriggerChainNode> buildProjectTrees(@NotNull SProject project) {
         Map<String, List<SBuildType>> reverseMap = buildReverseTriggersMap();
+        Map<String, List<String>> andReqMap = buildAndRequirementsMap();
+        Map<String, String> agentModeMap = buildAgentModeMap();
         List<TriggerChainNode> trees = new ArrayList<>();
 
-        addProjectTrees(project, reverseMap, trees);
+        addProjectTrees(project, reverseMap, andReqMap, agentModeMap, trees);
+
+        // Deduplicate: remove trees whose root is already shown in another tree
+        Set<String> nonRootIds = new HashSet<>();
+        for (TriggerChainNode root : trees) {
+            collectDescendantIds(root, nonRootIds);
+        }
+        trees.removeIf(root -> nonRootIds.contains(root.getBuildTypeId()));
+
         return trees;
+    }
+
+    /**
+     * Returns direct downstream builds only (one level deep).
+     * Used by the "Trigger Usage" tab to show builds that directly watch the given build type.
+     */
+    @NotNull
+    public List<TriggerChainNode> buildDirectDownstream(@NotNull SBuildType buildType) {
+        Map<String, List<SBuildType>> reverseMap = buildReverseTriggersMap();
+        Map<String, List<String>> andReqMap = buildAndRequirementsMap();
+        Map<String, String> agentModeMap = buildAgentModeMap();
+
+        Set<SBuildType> downstreamSet = new LinkedHashSet<>();
+        downstreamSet.addAll(reverseMap.getOrDefault(buildType.getBuildTypeId(), Collections.emptyList()));
+        downstreamSet.addAll(reverseMap.getOrDefault(buildType.getExternalId(), Collections.emptyList()));
+
+        List<SBuildType> downstream = new ArrayList<>(downstreamSet);
+        downstream.sort(Comparator.comparing((SBuildType bt) -> bt.getProject().getName())
+                .thenComparing(SBuildType::getName));
+
+        List<TriggerChainNode> nodes = new ArrayList<>();
+        for (SBuildType child : downstream) {
+            TriggerChainNode childNode = createNode(child);
+            List<String> andReqs = andReqMap.get(child.getBuildTypeId());
+            if (andReqs != null) childNode.setAndRequirements(andReqs);
+            String agentMode = agentModeMap.get(child.getBuildTypeId());
+            if (agentMode != null) childNode.setAgentMode(agentMode);
+            nodes.add(childNode);
+        }
+        return nodes;
+    }
+
+    private void collectDescendantIds(@NotNull TriggerChainNode node,
+                                       @NotNull Set<String> ids) {
+        for (TriggerChainNode child : node.getChildren()) {
+            ids.add(child.getBuildTypeId());
+            collectDescendantIds(child, ids);
+        }
     }
 
     private void addProjectTrees(@NotNull SProject project,
                                   @NotNull Map<String, List<SBuildType>> reverseMap,
+                                  @NotNull Map<String, List<String>> andReqMap,
+                                  @NotNull Map<String, String> agentModeMap,
                                   @NotNull List<TriggerChainNode> trees) {
         for (SBuildType buildType : project.getOwnBuildTypes()) {
-            Date chainStartTime = getChainStartTime(buildType);
             TriggerChainNode root = createNode(buildType);
-            populateChainBuildStatus(root, buildType, chainStartTime);
-
             Set<String> visited = new HashSet<>();
             visited.add(buildType.getBuildTypeId());
-            buildDownstreamWithMap(buildType, root, visited, reverseMap, chainStartTime);
+            buildDownstreamWithMap(buildType, root, visited, reverseMap, andReqMap, agentModeMap);
             if (root.hasChildren()) {
                 trees.add(root);
             }
         }
         for (SProject subProject : project.getOwnProjects()) {
-            addProjectTrees(subProject, reverseMap, trees);
+            addProjectTrees(subProject, reverseMap, andReqMap, agentModeMap, trees);
         }
-    }
-
-    /**
-     * Gets the chain start time from the root build type.
-     * This is the start time of the most recent build (running or finished).
-     * Returns null if the build type has never been built.
-     */
-    @Nullable
-    private Date getChainStartTime(@NotNull SBuildType rootBuildType) {
-        // Running build takes priority
-        List<SRunningBuild> running = rootBuildType.getRunningBuilds();
-        if (running != null && !running.isEmpty()) {
-            return running.get(0).getStartDate();
-        }
-        // Then last finished build
-        SFinishedBuild lastFinished = rootBuildType.getLastChangesFinished();
-        if (lastFinished != null) {
-            return lastFinished.getStartDate();
-        }
-        return null;
     }
 
     /**
      * Builds a reverse lookup map: for each build type ID, which build types
      * have a finish build trigger depending on it.
+     * For multi-build AND triggers, each watched ID maps to the downstream build.
      */
     @NotNull
     private Map<String, List<SBuildType>> buildReverseTriggersMap() {
@@ -133,7 +161,13 @@ public class TriggerChainService {
                 }
 
                 if (dependsOn != null && !dependsOn.isEmpty()) {
-                    reverseMap.computeIfAbsent(dependsOn, k -> new ArrayList<>()).add(bt);
+                    String[] ids = dependsOn.split(",");
+                    for (String id : ids) {
+                        String trimmed = id.trim();
+                        if (!trimmed.isEmpty()) {
+                            reverseMap.computeIfAbsent(trimmed, k -> new ArrayList<>()).add(bt);
+                        }
+                    }
                 }
             }
         }
@@ -141,23 +175,95 @@ public class TriggerChainService {
         return reverseMap;
     }
 
+    /**
+     * Builds a map of Condition (multi-watch) trigger requirements:
+     * key = downstream build type ID (internal), value = list of upstream build names.
+     * Only populated for multi-build triggers (2+ watched builds).
+     */
+    @NotNull
+    private Map<String, List<String>> buildAndRequirementsMap() {
+        Map<String, List<String>> andReqMap = new HashMap<>();
+
+        for (SBuildType bt : projectManager.getAllBuildTypes()) {
+            for (BuildTriggerDescriptor trigger : bt.getBuildTriggersCollection()) {
+                if (!FINISH_BUILD_TRIGGER_PLUS_TYPE.equals(trigger.getTriggerName())) continue;
+
+                String watchedIds = trigger.getProperties().get(WATCHED_BUILD_TYPE_ID_PROPERTY);
+                if (watchedIds == null || watchedIds.isEmpty()) continue;
+
+                String[] ids = watchedIds.split(",");
+                if (ids.length < 2) continue; // Not a multi-build trigger
+
+                // Resolve each watched ID and silently drop any that refer to
+                // deleted / non-existent build configurations — these shouldn't
+                // surface in the viewer.
+                List<String> names = new ArrayList<>();
+                for (String id : ids) {
+                    String trimmed = id.trim();
+                    if (trimmed.isEmpty()) continue;
+                    SBuildType upstream = projectManager.findBuildTypeByExternalId(trimmed);
+                    if (upstream == null) upstream = projectManager.findBuildTypeById(trimmed);
+                    if (upstream == null) continue; // skip deleted / unresolvable
+                    names.add(upstream.getName());
+                }
+
+                // Only label as a multi-watch Condition when 2+ valid watches remain
+                if (names.size() >= 2) {
+                    andReqMap.put(bt.getBuildTypeId(), names);
+                }
+            }
+        }
+
+        return andReqMap;
+    }
+
+    /**
+     * Builds a map of agent mode per downstream build type:
+     * key = downstream build type ID (internal), value = "all" | "same".
+     * Only populated from Finish Build Trigger (Plus) triggers that have the option set.
+     */
+    @NotNull
+    private Map<String, String> buildAgentModeMap() {
+        Map<String, String> agentModeMap = new HashMap<>();
+
+        for (SBuildType bt : projectManager.getAllBuildTypes()) {
+            for (BuildTriggerDescriptor trigger : bt.getBuildTriggersCollection()) {
+                if (!FINISH_BUILD_TRIGGER_PLUS_TYPE.equals(trigger.getTriggerName())) continue;
+
+                Map<String, String> props = trigger.getProperties();
+                if ("true".equals(props.get(TRIGGER_ON_ALL_AGENTS_PROPERTY))) {
+                    agentModeMap.put(bt.getBuildTypeId(), "all");
+                } else if ("true".equals(props.get(TRIGGER_ON_SAME_AGENT_PROPERTY))) {
+                    agentModeMap.put(bt.getBuildTypeId(), "same");
+                }
+            }
+        }
+
+        return agentModeMap;
+    }
+
     private void buildDownstreamWithMap(@NotNull SBuildType buildType,
                                          @NotNull TriggerChainNode node,
                                          @NotNull Set<String> visited,
                                          @NotNull Map<String, List<SBuildType>> reverseMap,
-                                         @Nullable Date chainStartTime) {
-        // Look up by both Internal ID (used by built-in trigger) and External ID (used by Plus plugin)
+                                         @NotNull Map<String, List<String>> andReqMap,
+                                         @NotNull Map<String, String> agentModeMap) {
+        // Look up by both Internal ID (built-in trigger) and External ID (Plus plugin)
         Set<SBuildType> downstreamSet = new LinkedHashSet<>();
         downstreamSet.addAll(reverseMap.getOrDefault(buildType.getBuildTypeId(), Collections.emptyList()));
         downstreamSet.addAll(reverseMap.getOrDefault(buildType.getExternalId(), Collections.emptyList()));
         List<SBuildType> downstream = new ArrayList<>(downstreamSet);
 
-        // Sort by project name + build type name for consistent display
         downstream.sort(Comparator.comparing((SBuildType bt) -> bt.getProject().getName())
                 .thenComparing(SBuildType::getName));
 
         for (SBuildType child : downstream) {
             if (visited.contains(child.getBuildTypeId())) {
+                // Condition (multi-watch) target already shown elsewhere — skip silently
+                if (andReqMap.containsKey(child.getBuildTypeId())) {
+                    continue;
+                }
+                // Genuine circular reference
                 TriggerChainNode circularNode = new TriggerChainNode(
                         child.getBuildTypeId(),
                         child.getName() + " (circular ref)",
@@ -170,65 +276,16 @@ public class TriggerChainService {
 
             visited.add(child.getBuildTypeId());
             TriggerChainNode childNode = createNode(child);
-            populateChainBuildStatus(childNode, child, chainStartTime);
+
+            List<String> andReqs = andReqMap.get(child.getBuildTypeId());
+            if (andReqs != null) childNode.setAndRequirements(andReqs);
+
+            String agentMode = agentModeMap.get(child.getBuildTypeId());
+            if (agentMode != null) childNode.setAgentMode(agentMode);
+
             node.addChild(childNode);
-            buildDownstreamWithMap(child, childNode, visited, reverseMap, chainStartTime);
+            buildDownstreamWithMap(child, childNode, visited, reverseMap, andReqMap, agentModeMap);
         }
-    }
-
-    /**
-     * Populates build status for a node relative to the current chain execution.
-     *
-     * Uses chainStartTime (the root build's start time) as reference:
-     * - If a build started at or after chainStartTime, it belongs to this chain run
-     * - If no such build exists, the node is "pending" (waiting to be triggered)
-     * - If chainStartTime is null (root never built), status is "idle"
-     */
-    private void populateChainBuildStatus(@NotNull TriggerChainNode node,
-                                           @NotNull SBuildType buildType,
-                                           @Nullable Date chainStartTime) {
-        if (chainStartTime == null) {
-            node.setBuildStatus("idle");
-            return;
-        }
-
-        // 1. Check for running builds in this chain
-        List<SRunningBuild> runningBuilds = buildType.getRunningBuilds();
-        if (runningBuilds != null) {
-            for (SRunningBuild running : runningBuilds) {
-                Date startDate = running.getStartDate();
-                if (startDate != null && !startDate.before(chainStartTime)) {
-                    node.setBuildStatus("running");
-                    node.setBuildProgress(running.getCompletedPercent());
-                    node.setBuildNumber("#" + running.getBuildNumber());
-                    node.setBuildUrl("/buildConfiguration/" + buildType.getExternalId() + "/" + running.getBuildId());
-                    return;
-                }
-            }
-        }
-
-        // 2. Check for queued builds
-        List<SQueuedBuild> queuedBuilds = buildType.getQueuedBuilds(null);
-        if (queuedBuilds != null && !queuedBuilds.isEmpty()) {
-            node.setBuildStatus("queued");
-            return;
-        }
-
-        // 3. Check last finished build — only if it started after chain start
-        SFinishedBuild lastFinished = buildType.getLastChangesFinished();
-        if (lastFinished != null) {
-            Date startDate = lastFinished.getStartDate();
-            if (startDate != null && !startDate.before(chainStartTime)) {
-                boolean success = lastFinished.getBuildStatus().isSuccessful();
-                node.setBuildStatus(success ? "success" : "failure");
-                node.setBuildNumber("#" + lastFinished.getBuildNumber());
-                node.setBuildUrl("/buildConfiguration/" + buildType.getExternalId() + "/" + lastFinished.getBuildId());
-                return;
-            }
-        }
-
-        // 4. No build in this chain run yet — pending
-        node.setBuildStatus("pending");
     }
 
     @NotNull

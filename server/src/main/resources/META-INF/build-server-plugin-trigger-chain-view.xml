@@ -11,4 +11,7 @@
     <bean id="triggerChainProjectTab"
           class="com.woojin.teamcity.triggerchain.TriggerChainProjectTab"/>
 
+    <bean id="triggerUsageTab"
+          class="com.woojin.teamcity.triggerchain.TriggerUsageTab"/>
+
 </beans>

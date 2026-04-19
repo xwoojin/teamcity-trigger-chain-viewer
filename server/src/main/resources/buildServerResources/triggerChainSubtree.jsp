@@ -25,8 +25,25 @@
                         <span class="trigger-chain-separator">&nbsp;::&nbsp;</span>
                         <span class="trigger-chain-buildtype">${fn:escapeXml(node.buildTypeName)}</span>
                     </a>
-                    <c:set var="statusNode" value="${node}" scope="request"/>
-                    <jsp:include page="triggerChainStatus.jsp"/>
+                    <c:if test="${node.hasAndRequirements()}">
+                        <span class="trigger-chain-and-label" title="Triggers when ALL listed builds complete">Condition:
+                            <c:forEach var="req" items="${node.andRequirements}" varStatus="rs">
+                                <c:if test="${!rs.first}"> + </c:if>${fn:escapeXml(req)}
+                            </c:forEach>
+                        </span>
+                    </c:if>
+                    <c:if test="${node.hasAgentMode()}">
+                        <c:choose>
+                            <c:when test="${node.agentMode == 'all'}">
+                                <span class="trigger-chain-agent-label trigger-chain-agent-all"
+                                      title="Triggered build runs on all enabled compatible agents">All Agents</span>
+                            </c:when>
+                            <c:when test="${node.agentMode == 'same'}">
+                                <span class="trigger-chain-agent-label trigger-chain-agent-same"
+                                      title="Triggered build runs on the same agent as the watched build">Same Agent</span>
+                            </c:when>
+                        </c:choose>
+                    </c:if>
                 </div>
 
                 <c:if test="${node.hasChildren()}">

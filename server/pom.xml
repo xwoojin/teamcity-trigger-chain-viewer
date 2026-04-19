@@ -8,7 +8,7 @@
   <parent>
     <groupId>com.woojin.teamcity</groupId>
     <artifactId>trigger-chain-view</artifactId>
-    <version>260412.1</version>
+    <version>260419.2</version>
   </parent>
 
   <artifactId>trigger-chain-view-server</artifactId>
@@ -154,7 +154,7 @@
 
   <build>
     <plugins>
-      <!-- 1) JAR 생성 (buildServerResources/JSP 포함) -->
+      <!-- 1) Build the JAR (includes buildServerResources / JSPs) -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
@@ -166,7 +166,7 @@
         </configuration>
       </plugin>
 
-      <!-- 2) 최종 플러그인 ZIP 패키징 -->
+      <!-- 2) Package the final plugin ZIP -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-assembly-plugin</artifactId>

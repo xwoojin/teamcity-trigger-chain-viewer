@@ -14,11 +14,12 @@ public class TriggerChainNode {
     private final String buildTypeUrl;
     private final List<TriggerChainNode> children;
 
-    // Build status fields
-    private String buildStatus;   // "success", "failure", "running", "queued", "idle"
-    private int buildProgress;    // 0-100, only meaningful when status is "running"
-    private String buildNumber;   // e.g. "#123"
-    private String buildUrl;      // URL to the specific build run
+    // Condition (multi-watch) requirements (e.g. ["Build C", "Build B", "Build D"])
+    private List<String> andRequirements;
+
+    // Agent mode from the Finish Build Trigger (Plus) trigger that points at this node.
+    // Values: "all" (run on all compatible agents), "same" (same agent as watched build), or null.
+    private String agentMode;
 
     public TriggerChainNode(String buildTypeId, String buildTypeName, String projectName, String buildTypeUrl) {
         this.buildTypeId = buildTypeId;
@@ -26,8 +27,6 @@ public class TriggerChainNode {
         this.projectName = projectName;
         this.buildTypeUrl = buildTypeUrl;
         this.children = new ArrayList<>();
-        this.buildStatus = "idle";
-        this.buildProgress = 0;
     }
 
     public String getBuildTypeId() {
@@ -66,53 +65,31 @@ public class TriggerChainNode {
         return count;
     }
 
-    // Build status getters and setters
+    // Condition (multi-watch) requirements
 
-    public String getBuildStatus() {
-        return buildStatus;
+    public List<String> getAndRequirements() {
+        return andRequirements;
     }
 
-    public void setBuildStatus(String buildStatus) {
-        this.buildStatus = buildStatus;
+    public void setAndRequirements(List<String> andRequirements) {
+        this.andRequirements = andRequirements;
     }
 
-    public int getBuildProgress() {
-        return buildProgress;
+    public boolean hasAndRequirements() {
+        return andRequirements != null && !andRequirements.isEmpty();
     }
 
-    public void setBuildProgress(int buildProgress) {
-        this.buildProgress = buildProgress;
+    // Agent mode
+
+    public String getAgentMode() {
+        return agentMode;
     }
 
-    public String getBuildNumber() {
-        return buildNumber;
+    public void setAgentMode(String agentMode) {
+        this.agentMode = agentMode;
     }
 
-    public void setBuildNumber(String buildNumber) {
-        this.buildNumber = buildNumber;
-    }
-
-    public String getBuildUrl() {
-        return buildUrl;
-    }
-
-    public void setBuildUrl(String buildUrl) {
-        this.buildUrl = buildUrl;
-    }
-
-    /**
-     * Returns true if any node in this tree (including this node) has
-     * a running or queued build.
-     */
-    public boolean hasActiveBuilds() {
-        if ("running".equals(buildStatus) || "queued".equals(buildStatus) || "pending".equals(buildStatus)) {
-            return true;
-        }
-        for (TriggerChainNode child : children) {
-            if (child.hasActiveBuilds()) {
-                return true;
-            }
-        }
-        return false;
+    public boolean hasAgentMode() {
+        return agentMode != null && !agentMode.isEmpty();
     }
 }
