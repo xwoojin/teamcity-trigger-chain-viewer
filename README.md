@@ -8,7 +8,7 @@ Works with the built-in TeamCity **Finish Build Trigger** and the [Finish Build 
 
 ## Screenshot
 
-![Trigger Chain View](docs/images/build-structure.png)
+![Trigger Chain View](docs/images/build-structures.png)
 
 ## Features
 
