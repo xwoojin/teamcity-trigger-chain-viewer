@@ -15,10 +15,19 @@ import java.util.*;
  * a "Finish Build Trigger" depending on A, then recursively finds their
  * downstream triggers to build the full chain.
  *
- * Supports multi-build AND triggers: when a build watches multiple upstream builds,
- * it is shown only once in the tree with a Condition label listing all requirements.
+ * Handles multi-build AND triggers in two ways:
+ *   - Per-node Condition label when the watched builds don't form a clean
+ *     sibling set in the tree.
+ *   - Group pseudo-nodes (see {@link TriggerChainNode#createChainGroup}) when
+ *     all watched builds ARE direct siblings — the members are bundled into a
+ *     single group box and the shared downstream builds are pulled up as the
+ *     group's children, removing the redundant Condition labels.
  *
- * Supports agent mode annotation from Finish Build Trigger (Plus):
+ * The Trigger Usage view uses a simpler {@link TriggerChainNode#createUsageGroup}
+ * to collapse multiple downstream builds that share an identical AND-condition
+ * into one group with the condition shown on its header.
+ *
+ * Also surfaces the agent mode annotation from Finish Build Trigger (Plus):
  *   "all"  = trigger runs on all enabled compatible agents
  *   "same" = trigger runs on the same agent that ran the watched build
  */
@@ -48,13 +57,14 @@ public class TriggerChainService {
     @NotNull
     public TriggerChainNode buildDownstreamTree(@NotNull SBuildType buildType) {
         Map<String, List<SBuildType>> reverseMap = buildReverseTriggersMap();
-        Map<String, List<String>> andReqMap = buildAndRequirementsMap();
+        Map<String, AndReq> andReqMap = buildAndRequirementsMap();
         Map<String, String> agentModeMap = buildAgentModeMap();
 
         TriggerChainNode root = createNode(buildType);
         Set<String> visited = new HashSet<>();
         visited.add(buildType.getBuildTypeId());
         buildDownstreamWithMap(buildType, root, visited, reverseMap, andReqMap, agentModeMap);
+        formChainGroupsRecursive(root);
         return root;
     }
 
@@ -67,7 +77,7 @@ public class TriggerChainService {
     @NotNull
     public List<TriggerChainNode> buildProjectTrees(@NotNull SProject project) {
         Map<String, List<SBuildType>> reverseMap = buildReverseTriggersMap();
-        Map<String, List<String>> andReqMap = buildAndRequirementsMap();
+        Map<String, AndReq> andReqMap = buildAndRequirementsMap();
         Map<String, String> agentModeMap = buildAgentModeMap();
         List<TriggerChainNode> trees = new ArrayList<>();
 
@@ -80,6 +90,10 @@ public class TriggerChainService {
         }
         trees.removeIf(root -> nonRootIds.contains(root.getBuildTypeId()));
 
+        for (TriggerChainNode root : trees) {
+            formChainGroupsRecursive(root);
+        }
+
         return trees;
     }
 
@@ -90,7 +104,7 @@ public class TriggerChainService {
     @NotNull
     public List<TriggerChainNode> buildDirectDownstream(@NotNull SBuildType buildType) {
         Map<String, List<SBuildType>> reverseMap = buildReverseTriggersMap();
-        Map<String, List<String>> andReqMap = buildAndRequirementsMap();
+        Map<String, AndReq> andReqMap = buildAndRequirementsMap();
         Map<String, String> agentModeMap = buildAgentModeMap();
 
         Set<SBuildType> downstreamSet = new LinkedHashSet<>();
@@ -104,13 +118,62 @@ public class TriggerChainService {
         List<TriggerChainNode> nodes = new ArrayList<>();
         for (SBuildType child : downstream) {
             TriggerChainNode childNode = createNode(child);
-            List<String> andReqs = andReqMap.get(child.getBuildTypeId());
-            if (andReqs != null) childNode.setAndRequirements(andReqs);
+            AndReq andReq = andReqMap.get(child.getBuildTypeId());
+            if (andReq != null) {
+                childNode.setAndRequirements(andReq.names);
+                childNode.setAndRequirementIds(andReq.ids);
+            }
             String agentMode = agentModeMap.get(child.getBuildTypeId());
             if (agentMode != null) childNode.setAgentMode(agentMode);
             nodes.add(childNode);
         }
-        return nodes;
+        return formUsageGroups(nodes);
+    }
+
+    /**
+     * Groups Usage items that share an identical AND-condition into a single
+     * group pseudo-node with the condition shown once on the group header.
+     * Singletons (and items without an AND-condition) pass through unchanged.
+     */
+    @NotNull
+    private List<TriggerChainNode> formUsageGroups(@NotNull List<TriggerChainNode> nodes) {
+        Map<List<String>, List<TriggerChainNode>> byKey = new LinkedHashMap<>();
+        for (TriggerChainNode n : nodes) {
+            List<String> andIds = n.getAndRequirementIds();
+            if (andIds == null || andIds.size() < 2) continue;
+            List<String> key = new ArrayList<>(andIds);
+            Collections.sort(key);
+            byKey.computeIfAbsent(key, k -> new ArrayList<>()).add(n);
+        }
+
+        Map<TriggerChainNode, TriggerChainNode> memberToGroup = new IdentityHashMap<>();
+        for (Map.Entry<List<String>, List<TriggerChainNode>> e : byKey.entrySet()) {
+            List<TriggerChainNode> members = e.getValue();
+            if (members.size() < 2) continue;
+            List<String> names = members.get(0).getAndRequirements();
+            TriggerChainNode g = TriggerChainNode.createUsageGroup(members, names);
+            for (TriggerChainNode m : members) memberToGroup.put(m, g);
+        }
+
+        if (memberToGroup.isEmpty()) return nodes;
+
+        List<TriggerChainNode> result = new ArrayList<>();
+        Set<TriggerChainNode> emitted = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (TriggerChainNode n : nodes) {
+            TriggerChainNode g = memberToGroup.get(n);
+            if (g == null) {
+                result.add(n);
+            } else if (emitted.add(g)) {
+                result.add(g);
+            }
+        }
+
+        // Clear redundant per-member Condition now that it's shown on the group header
+        for (TriggerChainNode m : memberToGroup.keySet()) {
+            m.clearAndRequirements();
+        }
+
+        return result;
     }
 
     private void collectDescendantIds(@NotNull TriggerChainNode node,
@@ -123,7 +186,7 @@ public class TriggerChainService {
 
     private void addProjectTrees(@NotNull SProject project,
                                   @NotNull Map<String, List<SBuildType>> reverseMap,
-                                  @NotNull Map<String, List<String>> andReqMap,
+                                  @NotNull Map<String, AndReq> andReqMap,
                                   @NotNull Map<String, String> agentModeMap,
                                   @NotNull List<TriggerChainNode> trees) {
         for (SBuildType buildType : project.getOwnBuildTypes()) {
@@ -176,13 +239,26 @@ public class TriggerChainService {
     }
 
     /**
+     * Paired internal-IDs + display-names for a multi-watch AND condition.
+     */
+    private static final class AndReq {
+        final List<String> ids;
+        final List<String> names;
+        AndReq(List<String> ids, List<String> names) {
+            this.ids = ids;
+            this.names = names;
+        }
+    }
+
+    /**
      * Builds a map of Condition (multi-watch) trigger requirements:
-     * key = downstream build type ID (internal), value = list of upstream build names.
+     * key = downstream build type ID (internal), value = paired lists of upstream
+     * internal IDs (for identity matching) and names (for display).
      * Only populated for multi-build triggers (2+ watched builds).
      */
     @NotNull
-    private Map<String, List<String>> buildAndRequirementsMap() {
-        Map<String, List<String>> andReqMap = new HashMap<>();
+    private Map<String, AndReq> buildAndRequirementsMap() {
+        Map<String, AndReq> andReqMap = new HashMap<>();
 
         for (SBuildType bt : projectManager.getAllBuildTypes()) {
             for (BuildTriggerDescriptor trigger : bt.getBuildTriggersCollection()) {
@@ -197,6 +273,7 @@ public class TriggerChainService {
                 // Resolve each watched ID and silently drop any that refer to
                 // deleted / non-existent build configurations — these shouldn't
                 // surface in the viewer.
+                List<String> resolvedIds = new ArrayList<>();
                 List<String> names = new ArrayList<>();
                 for (String id : ids) {
                     String trimmed = id.trim();
@@ -204,12 +281,13 @@ public class TriggerChainService {
                     SBuildType upstream = projectManager.findBuildTypeByExternalId(trimmed);
                     if (upstream == null) upstream = projectManager.findBuildTypeById(trimmed);
                     if (upstream == null) continue; // skip deleted / unresolvable
+                    resolvedIds.add(upstream.getBuildTypeId());
                     names.add(upstream.getName());
                 }
 
                 // Only label as a multi-watch Condition when 2+ valid watches remain
                 if (names.size() >= 2) {
-                    andReqMap.put(bt.getBuildTypeId(), names);
+                    andReqMap.put(bt.getBuildTypeId(), new AndReq(resolvedIds, names));
                 }
             }
         }
@@ -246,7 +324,7 @@ public class TriggerChainService {
                                          @NotNull TriggerChainNode node,
                                          @NotNull Set<String> visited,
                                          @NotNull Map<String, List<SBuildType>> reverseMap,
-                                         @NotNull Map<String, List<String>> andReqMap,
+                                         @NotNull Map<String, AndReq> andReqMap,
                                          @NotNull Map<String, String> agentModeMap) {
         // Look up by both Internal ID (built-in trigger) and External ID (Plus plugin)
         Set<SBuildType> downstreamSet = new LinkedHashSet<>();
@@ -277,8 +355,11 @@ public class TriggerChainService {
             visited.add(child.getBuildTypeId());
             TriggerChainNode childNode = createNode(child);
 
-            List<String> andReqs = andReqMap.get(child.getBuildTypeId());
-            if (andReqs != null) childNode.setAndRequirements(andReqs);
+            AndReq andReq = andReqMap.get(child.getBuildTypeId());
+            if (andReq != null) {
+                childNode.setAndRequirements(andReq.names);
+                childNode.setAndRequirementIds(andReq.ids);
+            }
 
             String agentMode = agentModeMap.get(child.getBuildTypeId());
             if (agentMode != null) childNode.setAgentMode(agentMode);
@@ -286,6 +367,115 @@ public class TriggerChainService {
             node.addChild(childNode);
             buildDownstreamWithMap(child, childNode, visited, reverseMap, andReqMap, agentModeMap);
         }
+    }
+
+    // ---------------------------------------------------------------------
+    // Chain-tab grouping: bundle sibling upstreams that are co-watched by the
+    // same AND-condition into a group pseudo-node, with the shared downstream
+    // builds pulled up as the group's children.
+    // ---------------------------------------------------------------------
+
+    private void formChainGroupsRecursive(@NotNull TriggerChainNode n) {
+        // Depth-first so that deeper groupings are resolved before we look at this level.
+        for (TriggerChainNode c : n.getChildren()) {
+            formChainGroupsRecursive(c);
+        }
+        if (n.isGroup()) {
+            for (TriggerChainNode m : n.getGroupMembers()) {
+                formChainGroupsRecursive(m);
+            }
+        } else {
+            formChainGroupsAt(n);
+        }
+    }
+
+    /**
+     * At node G, find AND-target grandchildren (direct children of G's children)
+     * whose full AND-set is contained within G's direct children. Bundle those
+     * members into a group pseudo-node and pull the shared AND-targets up as the
+     * group's children.
+     */
+    private void formChainGroupsAt(@NotNull TriggerChainNode G) {
+        List<TriggerChainNode> children = G.getChildren();
+        if (children.size() < 2) return;
+
+        // Only single-build siblings are eligible to be grouped; skip any
+        // pre-existing group pseudo-nodes (shouldn't happen yet, but be safe).
+        Set<String> siblingIds = new HashSet<>();
+        for (TriggerChainNode c : children) {
+            if (!c.isGroup()) siblingIds.add(c.getBuildTypeId());
+        }
+
+        // Collect candidate AND-targets (grandchildren) keyed by normalized AND-set.
+        Map<List<String>, List<TriggerChainNode>> candidates = new LinkedHashMap<>();
+        for (TriggerChainNode M : children) {
+            if (M.isGroup()) continue;
+            for (TriggerChainNode C : M.getChildren()) {
+                if (C.isGroup()) continue;
+                List<String> andIds = C.getAndRequirementIds();
+                if (andIds == null || andIds.size() < 2) continue;
+                // Every member of the AND-set must be a direct sibling at G.
+                if (!siblingIds.containsAll(andIds)) continue;
+
+                List<String> key = new ArrayList<>(andIds);
+                Collections.sort(key);
+                candidates.computeIfAbsent(key, k -> new ArrayList<>()).add(C);
+            }
+        }
+
+        if (candidates.isEmpty()) return;
+
+        Map<String, TriggerChainNode> memberIdToGroup = new HashMap<>();
+        Set<TriggerChainNode> sharedToStrip = Collections.newSetFromMap(new IdentityHashMap<>());
+
+        for (Map.Entry<List<String>, List<TriggerChainNode>> e : candidates.entrySet()) {
+            List<String> key = e.getKey();
+            List<TriggerChainNode> shared = e.getValue();
+
+            // Gather members in original sibling order.
+            Set<String> keySet = new HashSet<>(key);
+            List<TriggerChainNode> members = new ArrayList<>();
+            boolean conflict = false;
+            for (TriggerChainNode c : children) {
+                if (c.isGroup()) continue;
+                if (!keySet.contains(c.getBuildTypeId())) continue;
+                if (memberIdToGroup.containsKey(c.getBuildTypeId())) { conflict = true; break; }
+                members.add(c);
+            }
+            if (conflict || members.size() < 2) continue;
+
+            TriggerChainNode groupNode = TriggerChainNode.createChainGroup(members, shared);
+            for (TriggerChainNode m : members) memberIdToGroup.put(m.getBuildTypeId(), groupNode);
+            for (TriggerChainNode s : shared) {
+                sharedToStrip.add(s);
+                // Condition label is now implied by the group box, drop redundant text.
+                s.clearAndRequirements();
+            }
+        }
+
+        if (memberIdToGroup.isEmpty()) return;
+
+        // Detach shared AND-targets from their current parent member's child list.
+        for (TriggerChainNode M : children) {
+            if (M.isGroup()) continue;
+            M.getChildren().removeIf(sharedToStrip::contains);
+        }
+
+        // Rebuild G's children: replace the first occurrence of any member with
+        // the corresponding group, drop subsequent members (they now live inside
+        // the group), keep everything else in place.
+        List<TriggerChainNode> rebuilt = new ArrayList<>();
+        Set<TriggerChainNode> emittedGroups = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (TriggerChainNode c : children) {
+            if (c.isGroup()) { rebuilt.add(c); continue; }
+            TriggerChainNode g = memberIdToGroup.get(c.getBuildTypeId());
+            if (g == null) {
+                rebuilt.add(c);
+            } else if (emittedGroups.add(g)) {
+                rebuilt.add(g);
+            }
+        }
+        G.setChildren(rebuilt);
     }
 
     @NotNull

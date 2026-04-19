@@ -27,33 +27,69 @@
                             <span class="trigger-chain-line-vertical"></span>
                             <span class="trigger-chain-line-horizontal"></span>
                         </div>
-                        <div class="trigger-chain-node" data-buildtype-id="${fn:escapeXml(node.buildTypeId)}">
-                            <span class="trigger-chain-leaf-dot">&#9654;</span>
-                            <a href="${node.buildTypeUrl}" class="trigger-chain-node-link">
-                                <span class="trigger-chain-project">${fn:escapeXml(node.projectName)}</span>
-                                <span class="trigger-chain-separator">&nbsp;::&nbsp;</span>
-                                <span class="trigger-chain-buildtype">${fn:escapeXml(node.buildTypeName)}</span>
-                            </a>
-                            <c:if test="${node.hasAndRequirements()}">
-                                <span class="trigger-chain-and-label" title="Triggers when ALL listed builds complete">Condition:
-                                    <c:forEach var="req" items="${node.andRequirements}" varStatus="rs">
-                                        <c:if test="${!rs.first}"> + </c:if>${fn:escapeXml(req)}
+                        <c:choose>
+                            <%-- Group: several downstream builds share an identical AND-condition --%>
+                            <c:when test="${node.group}">
+                                <div class="trigger-chain-group" title="These builds share a single AND-condition trigger">
+                                    <div class="trigger-chain-group-tag">Condition (all must finish):
+                                        <c:forEach var="req" items="${node.andRequirements}" varStatus="rs">
+                                            <c:if test="${!rs.first}"> + </c:if>${fn:escapeXml(req)}
+                                        </c:forEach>
+                                    </div>
+                                    <c:forEach var="member" items="${node.groupMembers}">
+                                        <div class="trigger-chain-node trigger-chain-group-member" data-buildtype-id="${fn:escapeXml(member.buildTypeId)}">
+                                            <span class="trigger-chain-leaf-dot">&#9654;</span>
+                                            <a href="${member.buildTypeUrl}" class="trigger-chain-node-link">
+                                                <span class="trigger-chain-project">${fn:escapeXml(member.projectName)}</span>
+                                                <span class="trigger-chain-separator">&nbsp;::&nbsp;</span>
+                                                <span class="trigger-chain-buildtype">${fn:escapeXml(member.buildTypeName)}</span>
+                                            </a>
+                                            <c:if test="${member.hasAgentMode()}">
+                                                <c:choose>
+                                                    <c:when test="${member.agentMode == 'all'}">
+                                                        <span class="trigger-chain-agent-label trigger-chain-agent-all"
+                                                              title="Triggered build runs on all enabled compatible agents">All Agents</span>
+                                                    </c:when>
+                                                    <c:when test="${member.agentMode == 'same'}">
+                                                        <span class="trigger-chain-agent-label trigger-chain-agent-same"
+                                                              title="Triggered build runs on the same agent as the watched build">Same Agent</span>
+                                                    </c:when>
+                                                </c:choose>
+                                            </c:if>
+                                        </div>
                                     </c:forEach>
-                                </span>
-                            </c:if>
-                            <c:if test="${node.hasAgentMode()}">
-                                <c:choose>
-                                    <c:when test="${node.agentMode == 'all'}">
-                                        <span class="trigger-chain-agent-label trigger-chain-agent-all"
-                                              title="Triggered build runs on all enabled compatible agents">All Agents</span>
-                                    </c:when>
-                                    <c:when test="${node.agentMode == 'same'}">
-                                        <span class="trigger-chain-agent-label trigger-chain-agent-same"
-                                              title="Triggered build runs on the same agent as the watched build">Same Agent</span>
-                                    </c:when>
-                                </c:choose>
-                            </c:if>
-                        </div>
+                                </div>
+                            </c:when>
+                            <c:otherwise>
+                                <div class="trigger-chain-node" data-buildtype-id="${fn:escapeXml(node.buildTypeId)}">
+                                    <span class="trigger-chain-leaf-dot">&#9654;</span>
+                                    <a href="${node.buildTypeUrl}" class="trigger-chain-node-link">
+                                        <span class="trigger-chain-project">${fn:escapeXml(node.projectName)}</span>
+                                        <span class="trigger-chain-separator">&nbsp;::&nbsp;</span>
+                                        <span class="trigger-chain-buildtype">${fn:escapeXml(node.buildTypeName)}</span>
+                                    </a>
+                                    <c:if test="${node.hasAndRequirements()}">
+                                        <span class="trigger-chain-and-label" title="Triggers when ALL listed builds complete">Condition:
+                                            <c:forEach var="req" items="${node.andRequirements}" varStatus="rs">
+                                                <c:if test="${!rs.first}"> + </c:if>${fn:escapeXml(req)}
+                                            </c:forEach>
+                                        </span>
+                                    </c:if>
+                                    <c:if test="${node.hasAgentMode()}">
+                                        <c:choose>
+                                            <c:when test="${node.agentMode == 'all'}">
+                                                <span class="trigger-chain-agent-label trigger-chain-agent-all"
+                                                      title="Triggered build runs on all enabled compatible agents">All Agents</span>
+                                            </c:when>
+                                            <c:when test="${node.agentMode == 'same'}">
+                                                <span class="trigger-chain-agent-label trigger-chain-agent-same"
+                                                      title="Triggered build runs on the same agent as the watched build">Same Agent</span>
+                                            </c:when>
+                                        </c:choose>
+                                    </c:if>
+                                </div>
+                            </c:otherwise>
+                        </c:choose>
                     </li>
                 </c:forEach>
             </ul>

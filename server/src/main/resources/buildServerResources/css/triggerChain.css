@@ -295,6 +295,40 @@
     border: 1px solid #ffcc80;
 }
 
+/* Grouped siblings (shared AND-condition) */
+.trigger-chain-group {
+    position: relative;
+    margin: 2px 0;
+    padding: 6px 8px 4px 8px;
+    background: #f5f2ff;
+    border: 1px solid #d4cfef;
+    border-left: 3px solid #6a5acd;
+    border-radius: 4px;
+}
+
+.trigger-chain-group-tag {
+    display: inline-block;
+    margin-bottom: 4px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: #6a5acd;
+    background: #ffffff;
+    border: 1px solid #d4cfef;
+    border-radius: 3px;
+}
+
+.trigger-chain-group-member {
+    /* Members sit flush inside the group box */
+    padding-left: 4px;
+}
+
+.trigger-chain-group-member:hover {
+    background: #ece7ff;
+}
+
 /* Trigger Usage tab-specific tweaks */
 .trigger-usage-container {
     padding-top: 4px;
