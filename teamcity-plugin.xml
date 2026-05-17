@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <teamcity-plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                 xsi:noNamespaceSchemaLocation="urn:shemas-jetbrains-com:teamcity-plugin-v2-xml">
+                 xsi:noNamespaceSchemaLocation="urn:schemas-jetbrains-com:teamcity-plugin-v1-xml">
   <info>
     <name>trigger-chain-view</name>
     <display-name>Trigger Chain View</display-name>
-    <version>260419.3</version>
+    <version>260517.1</version>
     <description>Visualizes finish build trigger chains for each build configuration. Shows downstream triggered builds as a recursive tree, making it easy to understand the full trigger chain flow.</description>
     <vendor>
       <name>WooJin Kim</name>
