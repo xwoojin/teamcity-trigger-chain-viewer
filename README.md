@@ -19,7 +19,6 @@ Works with the built-in TeamCity **Finish Build Trigger** and the [Finish Build 
 - **Multi-watch AND grouping** — When several sibling builds are co-watched by the same AND-condition trigger (Finish Build Trigger (Plus) multi-build), the siblings are bundled into a highlighted **Condition group** box, and the shared downstream builds are pulled up as the group's children. This replaces verbose `Condition: X + Y + ...` labels with a clean visual grouping whenever possible.
 - **Nested AND groups** — Groups nest naturally: if the shared downstream builds are themselves co-watched by another AND-condition further down the chain, an inner Condition group appears as the child of the outer one, so multi-stage AND pipelines stay readable at any depth.
 - **Agent mode badges** — `All Agents` (green) and `Same Agent` (orange) badges surface the FBT+ trigger options at a glance.
-- **Circular reference detection** — Circular trigger chains are detected and marked to prevent infinite loops.
 - **Expand / Collapse all** — Quickly expand or collapse the entire tree.
 - **Hide / show disabled triggers** — By default the view only includes triggers that are currently enabled, so disabled triggers don't clutter the chain. A header button toggles to **Show disabled triggers** when you want to see the full picture including triggers that aren't currently firing.
 - **Deleted builds are auto-hidden** — If a watched build configuration is deleted, it is silently dropped from the view rather than showing a broken entry.

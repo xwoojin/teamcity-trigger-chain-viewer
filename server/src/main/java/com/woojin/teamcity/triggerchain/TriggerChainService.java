@@ -344,18 +344,10 @@ public class TriggerChainService {
 
         for (SBuildType child : downstream) {
             if (visited.contains(child.getBuildTypeId())) {
-                // Condition (multi-watch) target already shown elsewhere — skip silently
-                if (andReqMap.containsKey(child.getBuildTypeId())) {
-                    continue;
-                }
-                // Genuine circular reference
-                TriggerChainNode circularNode = new TriggerChainNode(
-                        child.getBuildTypeId(),
-                        child.getName() + " (circular ref)",
-                        child.getProject().getName(),
-                        buildTypeUrl(child)
-                );
-                node.addChild(circularNode);
+                // Either a multi-watch AND-target already shown elsewhere, or a
+                // genuine circular reference. Both are silently skipped — the
+                // TC trigger UI prevents circular refs at creation time, and an
+                // explicit "(circular ref)" node was just visual noise.
                 continue;
             }
 
