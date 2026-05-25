@@ -13,6 +13,10 @@
                 <h3 class="trigger-chain-title">Downstream Trigger Chains</h3>
                 <span class="trigger-chain-badge">${totalRoots} build<c:if test="${totalRoots > 1}">s</c:if> with triggers</span>
                 <span class="trigger-chain-badge trigger-chain-badge-secondary">${totalTriggered} total triggered</span>
+                <c:if test="${includeDisabled}"><span class="trigger-chain-badge trigger-chain-badge-secondary" title="Disabled triggers are currently included in this view">Disabled triggers included</span></c:if>
+                <button type="button" class="btn trigger-chain-toggle-disabled" onclick="TriggerChain.toggleDisabledTriggers(${!includeDisabled})" title="${includeDisabled ? 'Re-hide disabled triggers' : 'Show triggers that are currently disabled'}">
+                    <c:choose><c:when test="${includeDisabled}">Hide disabled triggers</c:when><c:otherwise>Show disabled triggers</c:otherwise></c:choose>
+                </button>
                 <button type="button" class="btn trigger-chain-toggle-all" onclick="TriggerChain.toggleAll()" title="Expand/Collapse All">
                     Expand All
                 </button>
@@ -42,6 +46,12 @@
                 <p class="trigger-chain-empty-hint">
                     Build configurations that have a <strong>Finish Build Trigger</strong> depending on builds in this project will appear here.
                 </p>
+                <c:if test="${!includeDisabled}">
+                    <p class="trigger-chain-empty-hint">
+                        <button type="button" class="btn trigger-chain-toggle-disabled" onclick="TriggerChain.toggleDisabledTriggers(true)">Show disabled triggers</button>
+                        — there may be triggers that are currently disabled.
+                    </p>
+                </c:if>
             </div>
         </c:otherwise>
     </c:choose>

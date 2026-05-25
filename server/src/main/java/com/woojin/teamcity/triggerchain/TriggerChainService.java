@@ -55,10 +55,11 @@ public class TriggerChainService {
      * being all build configs that are triggered by it (recursively).
      */
     @NotNull
-    public TriggerChainNode buildDownstreamTree(@NotNull SBuildType buildType) {
-        Map<String, List<SBuildType>> reverseMap = buildReverseTriggersMap();
-        Map<String, AndReq> andReqMap = buildAndRequirementsMap();
-        Map<String, String> agentModeMap = buildAgentModeMap();
+    public TriggerChainNode buildDownstreamTree(@NotNull SBuildType buildType,
+                                                boolean includeDisabled) {
+        Map<String, List<SBuildType>> reverseMap = buildReverseTriggersMap(includeDisabled);
+        Map<String, AndReq> andReqMap = buildAndRequirementsMap(includeDisabled);
+        Map<String, String> agentModeMap = buildAgentModeMap(includeDisabled);
 
         TriggerChainNode root = createNode(buildType);
         Set<String> visited = new HashSet<>();
@@ -75,10 +76,11 @@ public class TriggerChainService {
      * Trees whose root already appears as a descendant of another tree are excluded.
      */
     @NotNull
-    public List<TriggerChainNode> buildProjectTrees(@NotNull SProject project) {
-        Map<String, List<SBuildType>> reverseMap = buildReverseTriggersMap();
-        Map<String, AndReq> andReqMap = buildAndRequirementsMap();
-        Map<String, String> agentModeMap = buildAgentModeMap();
+    public List<TriggerChainNode> buildProjectTrees(@NotNull SProject project,
+                                                    boolean includeDisabled) {
+        Map<String, List<SBuildType>> reverseMap = buildReverseTriggersMap(includeDisabled);
+        Map<String, AndReq> andReqMap = buildAndRequirementsMap(includeDisabled);
+        Map<String, String> agentModeMap = buildAgentModeMap(includeDisabled);
         List<TriggerChainNode> trees = new ArrayList<>();
 
         addProjectTrees(project, reverseMap, andReqMap, agentModeMap, trees);
@@ -102,10 +104,11 @@ public class TriggerChainService {
      * Used by the "Trigger Usage" tab to show builds that directly watch the given build type.
      */
     @NotNull
-    public List<TriggerChainNode> buildDirectDownstream(@NotNull SBuildType buildType) {
-        Map<String, List<SBuildType>> reverseMap = buildReverseTriggersMap();
-        Map<String, AndReq> andReqMap = buildAndRequirementsMap();
-        Map<String, String> agentModeMap = buildAgentModeMap();
+    public List<TriggerChainNode> buildDirectDownstream(@NotNull SBuildType buildType,
+                                                        boolean includeDisabled) {
+        Map<String, List<SBuildType>> reverseMap = buildReverseTriggersMap(includeDisabled);
+        Map<String, AndReq> andReqMap = buildAndRequirementsMap(includeDisabled);
+        Map<String, String> agentModeMap = buildAgentModeMap(includeDisabled);
 
         Set<SBuildType> downstreamSet = new LinkedHashSet<>();
         downstreamSet.addAll(reverseMap.getOrDefault(buildType.getBuildTypeId(), Collections.emptyList()));
@@ -209,11 +212,13 @@ public class TriggerChainService {
      * For multi-build AND triggers, each watched ID maps to the downstream build.
      */
     @NotNull
-    private Map<String, List<SBuildType>> buildReverseTriggersMap() {
+    private Map<String, List<SBuildType>> buildReverseTriggersMap(boolean includeDisabled) {
         Map<String, List<SBuildType>> reverseMap = new HashMap<>();
 
         for (SBuildType bt : projectManager.getAllBuildTypes()) {
             for (BuildTriggerDescriptor trigger : bt.getBuildTriggersCollection()) {
+                if (!includeDisabled && !bt.isEnabled(trigger.getId())) continue;
+
                 String triggerName = trigger.getTriggerName();
                 String dependsOn = null;
 
@@ -257,12 +262,13 @@ public class TriggerChainService {
      * Only populated for multi-build triggers (2+ watched builds).
      */
     @NotNull
-    private Map<String, AndReq> buildAndRequirementsMap() {
+    private Map<String, AndReq> buildAndRequirementsMap(boolean includeDisabled) {
         Map<String, AndReq> andReqMap = new HashMap<>();
 
         for (SBuildType bt : projectManager.getAllBuildTypes()) {
             for (BuildTriggerDescriptor trigger : bt.getBuildTriggersCollection()) {
                 if (!FINISH_BUILD_TRIGGER_PLUS_TYPE.equals(trigger.getTriggerName())) continue;
+                if (!includeDisabled && !bt.isEnabled(trigger.getId())) continue;
 
                 String watchedIds = trigger.getProperties().get(WATCHED_BUILD_TYPE_ID_PROPERTY);
                 if (watchedIds == null || watchedIds.isEmpty()) continue;
@@ -301,12 +307,13 @@ public class TriggerChainService {
      * Only populated from Finish Build Trigger (Plus) triggers that have the option set.
      */
     @NotNull
-    private Map<String, String> buildAgentModeMap() {
+    private Map<String, String> buildAgentModeMap(boolean includeDisabled) {
         Map<String, String> agentModeMap = new HashMap<>();
 
         for (SBuildType bt : projectManager.getAllBuildTypes()) {
             for (BuildTriggerDescriptor trigger : bt.getBuildTriggersCollection()) {
                 if (!FINISH_BUILD_TRIGGER_PLUS_TYPE.equals(trigger.getTriggerName())) continue;
+                if (!includeDisabled && !bt.isEnabled(trigger.getId())) continue;
 
                 Map<String, String> props = trigger.getProperties();
                 if ("true".equals(props.get(TRIGGER_ON_ALL_AGENTS_PROPERTY))) {

@@ -21,6 +21,7 @@ Works with the built-in TeamCity **Finish Build Trigger** and the [Finish Build 
 - **Agent mode badges** — `All Agents` (green) and `Same Agent` (orange) badges surface the FBT+ trigger options at a glance.
 - **Circular reference detection** — Circular trigger chains are detected and marked to prevent infinite loops.
 - **Expand / Collapse all** — Quickly expand or collapse the entire tree.
+- **Hide / show disabled triggers** — By default the view only includes triggers that are currently enabled, so disabled triggers don't clutter the chain. A header button toggles to **Show disabled triggers** when you want to see the full picture including triggers that aren't currently firing.
 - **Deleted builds are auto-hidden** — If a watched build configuration is deleted, it is silently dropped from the view rather than showing a broken entry.
 
 ## How It Works

@@ -13,6 +13,10 @@
             <div class="trigger-chain-header">
                 <h3 class="trigger-chain-title">Used As Trigger By</h3>
                 <span class="trigger-chain-badge">${usageCount} build<c:if test="${usageCount > 1}">s</c:if></span>
+                <c:if test="${includeDisabled}"><span class="trigger-chain-badge trigger-chain-badge-secondary" title="Disabled triggers are currently included in this view">Disabled triggers included</span></c:if>
+                <button type="button" class="btn trigger-chain-toggle-disabled" onclick="TriggerChain.toggleDisabledTriggers(${!includeDisabled})" title="${includeDisabled ? 'Re-hide disabled triggers' : 'Show triggers that are currently disabled'}">
+                    <c:choose><c:when test="${includeDisabled}">Hide disabled triggers</c:when><c:otherwise>Show disabled triggers</c:otherwise></c:choose>
+                </button>
             </div>
             <p class="trigger-usage-desc">
                 The following build configuration<c:if test="${usageCount > 1}">s</c:if>
@@ -101,6 +105,12 @@
                 <p class="trigger-chain-empty-hint">
                     When another build configuration adds a <strong>Finish Build Trigger</strong> (or <strong>Finish Build Trigger (Plus)</strong>) that watches this build, it will appear here.
                 </p>
+                <c:if test="${!includeDisabled}">
+                    <p class="trigger-chain-empty-hint">
+                        <button type="button" class="btn trigger-chain-toggle-disabled" onclick="TriggerChain.toggleDisabledTriggers(true)">Show disabled triggers</button>
+                        — there may be triggers that are currently disabled.
+                    </p>
+                </c:if>
             </div>
         </c:otherwise>
     </c:choose>

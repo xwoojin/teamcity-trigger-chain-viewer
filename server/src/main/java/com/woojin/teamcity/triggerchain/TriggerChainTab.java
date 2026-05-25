@@ -42,9 +42,11 @@ public class TriggerChainTab extends BuildTypeTab {
                              @NotNull HttpServletRequest request,
                              @NotNull SBuildType buildType,
                              @NotNull SUser user) {
-        TriggerChainNode root = triggerChainService.buildDownstreamTree(buildType);
+        boolean includeDisabled = "true".equals(request.getParameter("includeDisabled"));
+        TriggerChainNode root = triggerChainService.buildDownstreamTree(buildType, includeDisabled);
         model.put("triggerChainRoot", root);
         model.put("hasDownstream", root.hasChildren());
         model.put("totalDownstream", root.getTotalDescendants());
+        model.put("includeDisabled", includeDisabled);
     }
 }

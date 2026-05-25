@@ -41,7 +41,8 @@ public class TriggerChainProjectTab extends ProjectTab {
                              @NotNull HttpServletRequest request,
                              @NotNull SProject project,
                              @NotNull SUser user) {
-        List<TriggerChainNode> trees = triggerChainService.buildProjectTrees(project);
+        boolean includeDisabled = "true".equals(request.getParameter("includeDisabled"));
+        List<TriggerChainNode> trees = triggerChainService.buildProjectTrees(project, includeDisabled);
         model.put("triggerChainTrees", trees);
         model.put("hasAnyChains", !trees.isEmpty());
 
@@ -51,5 +52,6 @@ public class TriggerChainProjectTab extends ProjectTab {
         }
         model.put("totalTriggered", totalTriggered);
         model.put("totalRoots", trees.size());
+        model.put("includeDisabled", includeDisabled);
     }
 }

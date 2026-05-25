@@ -24,6 +24,20 @@ var TriggerChain = {
     },
 
     /**
+     * Reload the page with the includeDisabled query param set/unset, so the
+     * server-side service rebuilds the tree with or without disabled triggers.
+     */
+    toggleDisabledTriggers: function(includeDisabled) {
+        var u = new URL(window.location.href);
+        if (includeDisabled) {
+            u.searchParams.set('includeDisabled', 'true');
+        } else {
+            u.searchParams.delete('includeDisabled');
+        }
+        window.location.href = u.toString();
+    },
+
+    /**
      * Toggle all nodes: expand all if any are collapsed, collapse all if all are expanded.
      */
     toggleAll: function() {

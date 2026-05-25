@@ -42,10 +42,12 @@ public class TriggerUsageTab extends BuildTypeTab {
                              @NotNull HttpServletRequest request,
                              @NotNull SBuildType buildType,
                              @NotNull SUser user) {
-        List<TriggerChainNode> usages = triggerChainService.buildDirectDownstream(buildType);
+        boolean includeDisabled = "true".equals(request.getParameter("includeDisabled"));
+        List<TriggerChainNode> usages = triggerChainService.buildDirectDownstream(buildType, includeDisabled);
         model.put("triggerUsages", usages);
         model.put("hasUsages", !usages.isEmpty());
         model.put("usageCount", usages.size());
         model.put("currentBuildTypeName", buildType.getName());
+        model.put("includeDisabled", includeDisabled);
     }
 }
